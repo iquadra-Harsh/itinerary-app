@@ -82,6 +82,14 @@ The application is configured for Replit deployment with the following setup:
 ```
 Changelog:
 - June 26, 2025. Initial setup
+- June 26, 2025. Built complete travel itinerary app with Express.js backend and React frontend
+  - User authentication with session-based login/registration  
+  - Home page showing all user itineraries with travel-themed design
+  - Detailed itinerary creation form with all requested fields
+  - AI-powered itinerary generation (requires OpenAI API key)
+  - PDF export functionality for completed itineraries
+  - Professional travel-themed UI with Tailwind CSS
+  - Fixed authentication hooks issue for proper login flow
 ```
 
 ## User Preferences

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { insertUserSchema, type InsertUser } from "@shared/schema";
 import { z } from "zod";
 import { Compass, MapPin, Plane, Camera } from "lucide-react";
 
-const loginSchema = insertUserSchema.pick({ email: true, password: true });
+const loginSchema = insertUserSchema.pick({ username: true, password: true });
 type LoginData = z.infer<typeof loginSchema>;
 
 export default function AuthPage() {
@@ -21,15 +21,16 @@ export default function AuthPage() {
   const [activeTab, setActiveTab] = useState("login");
 
   // Redirect if already logged in
-  if (user) {
-    setLocation("/");
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
 
   const loginForm = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
     },
   });
@@ -106,17 +107,17 @@ export default function AuthPage() {
                 <TabsContent value="login" className="mt-6">
                   <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
                     <div>
-                      <Label htmlFor="login-email">Email</Label>
+                      <Label htmlFor="login-username">Username</Label>
                       <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="Enter your email"
-                        {...loginForm.register("email")}
+                        id="login-username"
+                        type="text"
+                        placeholder="Enter your username"
+                        {...loginForm.register("username")}
                         className="mt-1"
                       />
-                      {loginForm.formState.errors.email && (
+                      {loginForm.formState.errors.username && (
                         <p className="text-sm text-destructive mt-1">
-                          {loginForm.formState.errors.email.message}
+                          {loginForm.formState.errors.username.message}
                         </p>
                       )}
                     </div>
