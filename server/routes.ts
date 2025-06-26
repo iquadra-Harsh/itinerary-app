@@ -61,7 +61,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(itinerary);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid input", errors: error.errors });
       }
       console.error("Error creating itinerary:", error);
       res.status(500).json({ message: "Failed to create itinerary" });
@@ -125,12 +127,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validatedData = updateItinerarySchema.partial().parse(req.body);
-      const updatedItinerary = await storage.updateItinerary(itinerary.id, validatedData);
+      const updatedItinerary = await storage.updateItinerary(
+        itinerary.id,
+        validatedData
+      );
 
       res.json(updatedItinerary);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+        return res
+          .status(400)
+          .json({ message: "Invalid input", errors: error.errors });
       }
       console.error("Error updating itinerary:", error);
       res.status(500).json({ message: "Failed to update itinerary" });
