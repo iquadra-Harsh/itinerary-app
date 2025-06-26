@@ -99,7 +99,7 @@ Make sure all activities are realistic, properly timed, and include specific loc
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
