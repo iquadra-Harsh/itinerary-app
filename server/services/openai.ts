@@ -1,7 +1,10 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
+const openai = new OpenAI({
+  apiKey:
+    process.env.OPENAI_API_KEY ||
+    process.env.OPENAI_API_KEY_ENV_VAR ||
+    "default_key",
 });
 
 export interface ItineraryRequest {
@@ -43,7 +46,9 @@ export interface GeneratedItinerary {
   };
 }
 
-export async function generateItinerary(request: ItineraryRequest): Promise<GeneratedItinerary> {
+export async function generateItinerary(
+  request: ItineraryRequest
+): Promise<GeneratedItinerary> {
   const prompt = `Create a detailed travel itinerary based on the following preferences:
 
 Location: ${request.location}
@@ -98,12 +103,13 @@ Make sure all activities are realistic, properly timed, and include specific loc
       messages: [
         {
           role: "system",
-          content: "You are an expert travel planner with extensive knowledge of destinations worldwide. Create detailed, realistic, and engaging travel itineraries based on user preferences. Always respond with valid JSON."
+          content:
+            "You are an expert travel planner with extensive knowledge of destinations worldwide. Create detailed, realistic, and engaging travel itineraries based on user preferences. Always respond with valid JSON.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       response_format: { type: "json_object" },
       temperature: 0.8,
