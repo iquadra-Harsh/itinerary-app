@@ -60,7 +60,7 @@ Dining Preferences: ${request.dining}
 Age Group: ${request.ageGroup}
 Interests: ${request.interests}
 
-Create a comprehensive itinerary with:
+The itinerary should have:
 1. A compelling title and one sentence description
 2. Day-by-day detailed plans with specific times, activities, and locations
 3. Recommendations for photo spots, local tips, and packing advice
