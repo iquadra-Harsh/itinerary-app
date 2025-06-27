@@ -1,12 +1,25 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type Itinerary } from "@shared/schema";
-import { Compass, Plus, LogOut, Users, User, Heart, UserCheck, MapPin, Calendar } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Compass,
+  Plus,
+  LogOut,
+  Users,
+  User,
+  Heart,
+  UserCheck,
+  MapPin,
+  Calendar,
+  Trash2,
+} from "lucide-react";
 
 const tripTypeIcons = {
   solo: User,
@@ -23,13 +36,51 @@ const statusColors = {
 
 export default function HomePage() {
   const { user, logoutMutation } = useAuth();
-  
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   const { data: itineraries, isLoading } = useQuery<Itinerary[]>({
     queryKey: ["/api/itineraries"],
   });
 
+  const deleteItineraryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/itineraries/${id}`);
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/itineraries"] });
+      toast({
+        title: "Trip deleted",
+        description: "Your itinerary has been successfully deleted.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = () => {
     logoutMutation.mutate();
+  };
+
+  const handleDelete = (e: React.MouseEvent, id: number, title: string) => {
+    e.preventDefault(); // Prevent navigation to itinerary view
+    e.stopPropagation();
+
+    if (
+      confirm(
+        `Are you sure you want to delete "${
+          title || "this trip"
+        }"? This action cannot be undone.`
+      )
+    ) {
+      deleteItineraryMutation.mutate(id);
+    }
   };
 
   return (
@@ -63,15 +114,19 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-slate-800 mb-2">Your Travel Adventures</h2>
-          <p className="text-slate-600">Plan, explore, and remember every journey</p>
+          <h2 className="text-3xl font-bold text-slate-800 mb-2">
+            Your Travel Adventures
+          </h2>
+          <p className="text-slate-600">
+            Plan, explore, and remember every journey
+          </p>
         </div>
 
         {/* Create New Itinerary Button */}
         <div className="mb-8">
           <Link href="/create">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-accent hover:bg-accent/90 text-white shadow-lg travel-card-hover"
             >
               <Plus className="h-5 w-5 mr-2" />
@@ -103,8 +158,12 @@ export default function HomePage() {
             <div className="w-24 h-24 mx-auto mb-4 opacity-40">
               <MapPin className="w-full h-full text-slate-400" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-600 mb-2">No adventures yet</h3>
-            <p className="text-slate-500 mb-6">Start planning your first trip to see it here!</p>
+            <h3 className="text-xl font-semibold text-slate-600 mb-2">
+              No adventures yet
+            </h3>
+            <p className="text-slate-500 mb-6">
+              Start planning your first trip to see it here!
+            </p>
             <Link href="/create">
               <Button className="bg-accent hover:bg-accent/90 text-white">
                 <Plus className="h-4 w-4 mr-2" />
@@ -115,18 +174,23 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {itineraries.map((itinerary) => {
-              const TripIcon = tripTypeIcons[itinerary.tripType as keyof typeof tripTypeIcons] || User;
-              
+              const TripIcon =
+                tripTypeIcons[
+                  itinerary.tripType as keyof typeof tripTypeIcons
+                ] || User;
+
               return (
-                <Card 
-                  key={itinerary.id} 
+                <Card
+                  key={itinerary.id}
                   className="overflow-hidden travel-card-hover cursor-pointer"
                 >
                   <Link href={`/itinerary/${itinerary.id}`}>
                     <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
                       <div className="text-center">
                         <MapPin className="h-12 w-12 text-primary mx-auto mb-2" />
-                        <p className="text-sm font-medium text-slate-600">{itinerary.location}</p>
+                        <p className="text-sm font-medium text-slate-600">
+                          {itinerary.location}
+                        </p>
                       </div>
                     </div>
                     <CardContent className="p-6">
@@ -134,15 +198,25 @@ export default function HomePage() {
                         <h3 className="text-xl font-semibold text-slate-800 truncate">
                           {itinerary.title || `${itinerary.location} Adventure`}
                         </h3>
-                        <Badge className={statusColors[itinerary.status as keyof typeof statusColors]}>
-                          {itinerary.status === "draft" ? "Planning" : 
-                           itinerary.status === "generated" ? "Generated" : "Saved"}
+                        <Badge
+                          className={
+                            statusColors[
+                              itinerary.status as keyof typeof statusColors
+                            ]
+                          }
+                        >
+                          {itinerary.status === "draft"
+                            ? "Planning"
+                            : itinerary.status === "generated"
+                            ? "Generated"
+                            : "Saved"}
                         </Badge>
                       </div>
                       <div className="flex items-center text-slate-600 mb-3">
                         <Calendar className="h-4 w-4 mr-2" />
                         <span className="text-sm">
-                          {new Date(itinerary.startDate).toLocaleDateString()} - {new Date(itinerary.endDate).toLocaleDateString()}
+                          {new Date(itinerary.startDate).toLocaleDateString()} -{" "}
+                          {new Date(itinerary.endDate).toLocaleDateString()}
                         </span>
                       </div>
                       {itinerary.description && (
@@ -153,11 +227,30 @@ export default function HomePage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 text-sm text-slate-500">
                           <TripIcon className="h-4 w-4" />
-                          <span className="capitalize">{itinerary.tripType}</span>
+                          <span className="capitalize">
+                            {itinerary.tripType}
+                          </span>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
-                          View Details
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-primary hover:text-white hover:bg-primary"
+                          >
+                            View Details
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) =>
+                              handleDelete(e, itinerary.id, itinerary.title)
+                            }
+                            className="text-red-500 hover:text-white hover:bg-red-600"
+                            disabled={deleteItineraryMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Link>
