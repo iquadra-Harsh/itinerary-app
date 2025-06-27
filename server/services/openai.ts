@@ -49,7 +49,7 @@ export interface GeneratedItinerary {
 export async function generateItinerary(
   request: ItineraryRequest
 ): Promise<GeneratedItinerary> {
-  const prompt = `Create a detailed travel itinerary based on the following preferences:
+  const prompt = `Create a detailed travel itinerary given the following:
 
 Location: ${request.location}
 Dates: ${request.startDate} to ${request.endDate}
@@ -60,8 +60,8 @@ Dining Preferences: ${request.dining}
 Age Group: ${request.ageGroup}
 Interests: ${request.interests}
 
-Please create a comprehensive itinerary with:
-1. A compelling title and description
+Create a comprehensive itinerary with:
+1. A compelling title and one sentence description
 2. Day-by-day detailed plans with specific times, activities, and locations
 3. Recommendations for photo spots, local tips, and packing advice
 
@@ -95,7 +95,7 @@ Return the response in JSON format with the following structure:
   }
 }
 
-Make sure all activities are realistic, properly timed, and include specific locations with addresses when possible.`;
+Make sure all activities are realistic, properly timed, and include specific locations with addresses.`;
 
   try {
     const response = await openai.chat.completions.create({
