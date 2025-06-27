@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LocationSuggestions } from "@/components/location-suggestions";
 import {
   insertItinerarySchema,
   type InsertItinerary,
@@ -41,14 +42,18 @@ const triggerConfetti = () => {
   const duration = 3000;
   const animationEnd = Date.now() + duration;
   const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
   function randomInRange(min: number, max: number) {
     return Math.random() * (max - min) + min;
   }
+
   const interval = setInterval(function () {
     const timeLeft = animationEnd - Date.now();
+
     if (timeLeft <= 0) {
       return clearInterval(interval);
     }
+
     const particleCount = 50 * (timeLeft / duration);
 
     // Left side
@@ -95,6 +100,9 @@ export default function CreateItinerary() {
       return await res.json();
     },
     onSuccess: async (itinerary: Itinerary) => {
+      // Trigger confetti celebration for new trip creation
+      triggerConfetti();
+
       // Immediately generate the itinerary
       setIsGenerating(true);
       try {
@@ -112,11 +120,22 @@ export default function CreateItinerary() {
         setLocation(`/itinerary/${itinerary.id}`);
       } finally {
         setIsGenerating(false);
-        // Trigger confetti celebration for new trip creation
-        triggerConfetti();
       }
     },
   });
+
+  const handleSuggestionSelect = (suggestion: any) => {
+    // Pre-fill form with suggestion data
+    form.setValue("location", suggestion.name);
+    form.setValue("title", `${suggestion.name} Adventure`);
+    form.setValue("description", suggestion.description);
+
+    // Scroll to form
+    const formElement = document.getElementById("itinerary-form");
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   const onSubmit = (data: InsertItinerary) => {
     createItineraryMutation.mutate(data);
@@ -170,8 +189,12 @@ export default function CreateItinerary() {
       )}
 
       {/* Form Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="shadow-lg">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Location Suggestions */}
+        <LocationSuggestions onSuggestionSelect={handleSuggestionSelect} />
+
+        {/* Trip Planning Form */}
+        <Card className="shadow-lg" id="itinerary-form">
           <CardHeader>
             <CardTitle className="text-2xl flex items-center space-x-2">
               <Sparkles className="h-6 w-6 text-accent" />
