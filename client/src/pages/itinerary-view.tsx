@@ -63,15 +63,38 @@ const periodColors = {
 };
 
 export default function ItineraryView() {
-  const { id } = useParams() as { id: string };
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  const { data: itinerary, isLoading } = useQuery<Itinerary>({
+  // Extract ID from URL path manually since useParams isn't working
+  const id = location.split("/").pop();
+
+  // console.log("Extracted ID from URL:", id);
+
+  const {
+    data: itinerary,
+    isLoading,
+    error,
+  } = useQuery<Itinerary>({
     queryKey: ["/api/itineraries", id],
-    queryFn: () =>
-      apiRequest("GET", `/api/itineraries/1`).then((res) => res.json()),
+    queryFn: async () => {
+      // console.log("Fetching itinerary for ID:", id);
+      const res = await apiRequest("GET", `/api/itineraries/${id}`);
+      const data = await res.json();
+      // console.log("Query result:", data);
+      return data;
+    },
+    enabled: !!id,
   });
+
+  console.log(
+    "Query state - isLoading:",
+    isLoading,
+    "itinerary:",
+    itinerary,
+    "error:",
+    error
+  );
 
   const saveItineraryMutation = useMutation({
     mutationFn: async () => {
