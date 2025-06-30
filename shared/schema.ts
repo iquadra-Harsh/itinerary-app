@@ -36,6 +36,7 @@ export const itineraries = pgTable("itineraries", {
   interests: text("interests").notNull(),
   generatedContent: jsonb("generated_content"), // AI-generated itinerary content
   status: text("status").default("draft").notNull(), // draft, generated, saved
+  isFavorited: boolean("is_favorited").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -60,6 +61,7 @@ export const updateItinerarySchema = createInsertSchema(itineraries).pick({
   description: true,
   generatedContent: true,
   status: true,
+  isFavorited: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type Itinerary } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,7 @@ import {
   Calendar,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
 
 const tripTypeIcons = {
   solo: User,
@@ -39,6 +41,7 @@ export default function HomePage() {
   const { user, logoutMutation } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("all");
 
   const { data: itineraries, isLoading } = useQuery<Itinerary[]>({
     queryKey: ["/api/itineraries"],
@@ -65,6 +68,31 @@ export default function HomePage() {
     },
   });
 
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async ({
+      id,
+      isFavorited,
+    }: {
+      id: number;
+      isFavorited: boolean;
+    }) => {
+      const res = await apiRequest("PUT", `/api/itineraries/${id}`, {
+        isFavorited: !isFavorited,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/itineraries"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = () => {
     logoutMutation.mutate();
   };
@@ -83,6 +111,180 @@ export default function HomePage() {
       deleteItineraryMutation.mutate(id);
     }
   };
+
+  const handleToggleFavorite = (
+    e: React.MouseEvent,
+    id: number,
+    isFavorited: boolean
+  ) => {
+    e.preventDefault(); // Prevent navigation to itinerary view
+    e.stopPropagation();
+
+    toggleFavoriteMutation.mutate({ id, isFavorited });
+  };
+
+  // Filter itineraries based on active tab
+  const filteredItineraries =
+    itineraries?.filter((itinerary) => {
+      if (activeTab === "favorites") {
+        return itinerary.isFavorited;
+      }
+      return true; // Show all for "all" tab
+    }) || [];
+
+  const renderItineraryCard = (itinerary: Itinerary) => {
+    const TripIcon =
+      tripTypeIcons[itinerary.tripType as keyof typeof tripTypeIcons] || User;
+
+    return (
+      <Card
+        key={itinerary.id}
+        className="overflow-hidden travel-card-hover relative"
+      >
+        <Link href={`/itinerary/${itinerary.id}`} className="block">
+          <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+            <div className="text-center">
+              <MapPin className="h-12 w-12 text-primary mx-auto mb-2" />
+              <p className="text-sm font-medium text-slate-600">
+                {itinerary.location}
+              </p>
+            </div>
+          </div>
+          <CardContent className="p-6 pb-14">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xl font-semibold text-slate-800 truncate">
+                {itinerary.title || `${itinerary.location} Adventure`}
+              </h3>
+              <Badge
+                className={
+                  statusColors[itinerary.status as keyof typeof statusColors]
+                }
+              >
+                {itinerary.status === "draft"
+                  ? "Planning"
+                  : itinerary.status === "generated"
+                  ? "Generated"
+                  : "Saved"}
+              </Badge>
+            </div>
+            <div className="flex items-center text-slate-600 mb-3">
+              <Calendar className="h-4 w-4 mr-2" />
+              <span className="text-sm">
+                {new Date(itinerary.startDate).toLocaleDateString()} -{" "}
+                {new Date(itinerary.endDate).toLocaleDateString()}
+              </span>
+            </div>
+            {itinerary.description && (
+              <p className="text-slate-500 text-sm mb-4 line-clamp-2">
+                {itinerary.description}
+              </p>
+            )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-slate-500">
+                <TripIcon className="h-4 w-4" />
+                <span className="capitalize">{itinerary.tripType}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary hover:text-white hover:bg-primary"
+                >
+                  View Details
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Link>
+
+        {/* Action buttons positioned at bottom right outside Link */}
+        <div className="absolute bottom-4 right-4 flex items-center space-x-1 z-10">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) =>
+              handleToggleFavorite(e, itinerary.id, itinerary.isFavorited)
+            }
+            className={`${
+              itinerary.isFavorited
+                ? "text-red-500 bg-white hover:bg-red-100 hover:text-red-500"
+                : "text-slate-500 bg-white hover:bg-slate-400"
+            }`}
+            disabled={toggleFavoriteMutation.isPending}
+          >
+            <Heart
+              className={`h-4 w-4 ${
+                itinerary.isFavorited ? "fill-current" : ""
+              }`}
+            />
+          </Button>
+          <EditItineraryDialog itinerary={itinerary} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => handleDelete(e, itinerary.id, itinerary.title)}
+            className="text-red-500 hover:text-white hover:bg-red-600"
+            disabled={deleteItineraryMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </Card>
+    );
+  };
+
+  const renderItinerariesGrid = (itinerariesToRender: Itinerary[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {itinerariesToRender.map(renderItineraryCard)}
+    </div>
+  );
+
+  const renderLoadingGrid = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {[...Array(6)].map((_, i) => (
+        <Card key={i} className="overflow-hidden">
+          <Skeleton className="w-full h-48" />
+          <CardContent className="p-6">
+            <Skeleton className="h-6 w-3/4 mb-2" />
+            <Skeleton className="h-4 w-1/2 mb-3" />
+            <Skeleton className="h-4 w-full mb-4" />
+            <div className="flex justify-between">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  const renderEmptyState = (isAll: boolean = true) => (
+    <div className="text-center py-12">
+      <div className="w-24 h-24 mx-auto mb-4 opacity-40">
+        {isAll ? (
+          <MapPin className="w-full h-full text-slate-400" />
+        ) : (
+          <Heart className="w-full h-full text-slate-400" />
+        )}
+      </div>
+      <h3 className="text-xl font-semibold text-slate-600 mb-2">
+        {isAll ? "No adventures yet" : "No favorite trips yet"}
+      </h3>
+      <p className="text-slate-500 mb-6">
+        {isAll
+          ? "Start planning your first trip to see it here!"
+          : "Mark your favorite itineraries by clicking the heart icon!"}
+      </p>
+      {isAll && (
+        <Link href="/create">
+          <Button className="bg-accent hover:bg-accent/90 text-white">
+            <Plus className="h-4 w-4 mr-2" />
+            Create Your First Itinerary
+          </Button>
+        </Link>
+      )}
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -136,135 +338,28 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Itineraries Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
-                <Skeleton className="w-full h-48" />
-                <CardContent className="p-6">
-                  <Skeleton className="h-6 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-1/2 mb-3" />
-                  <Skeleton className="h-4 w-full mb-4" />
-                  <div className="flex justify-between">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-4 w-24" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : !itineraries || itineraries.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 opacity-40">
-              <MapPin className="w-full h-full text-slate-400" />
-            </div>
-            <h3 className="text-xl font-semibold text-slate-600 mb-2">
-              No adventures yet
-            </h3>
-            <p className="text-slate-500 mb-6">
-              Start planning your first trip to see it here!
-            </p>
-            <Link href="/create">
-              <Button className="bg-accent hover:bg-accent/90 text-white">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Itinerary
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {itineraries.map((itinerary) => {
-              const TripIcon =
-                tripTypeIcons[
-                  itinerary.tripType as keyof typeof tripTypeIcons
-                ] || User;
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto mb-8">
+            <TabsTrigger value="all">All Trips</TabsTrigger>
+            <TabsTrigger value="favorites">Favorites</TabsTrigger>
+          </TabsList>
 
-              return (
-                <Card
-                  key={itinerary.id}
-                  className="overflow-hidden travel-card-hover relative"
-                >
-                  <Link href={`/itinerary/${itinerary.id}`} className="block">
-                    <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-                      <div className="text-center">
-                        <MapPin className="h-12 w-12 text-primary mx-auto mb-2" />
-                        <p className="text-sm font-medium text-slate-600">
-                          {itinerary.location}
-                        </p>
-                      </div>
-                    </div>
-                    <CardContent className="p-6 pb-12">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xl font-semibold text-slate-800 truncate">
-                          {itinerary.title || `${itinerary.location} Adventure`}
-                        </h3>
-                        <Badge
-                          className={
-                            statusColors[
-                              itinerary.status as keyof typeof statusColors
-                            ]
-                          }
-                        >
-                          {itinerary.status === "draft"
-                            ? "Planning"
-                            : itinerary.status === "generated"
-                            ? "Generated"
-                            : "Saved"}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center text-slate-600 mb-3">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        <span className="text-sm">
-                          {new Date(itinerary.startDate).toLocaleDateString()} -{" "}
-                          {new Date(itinerary.endDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {itinerary.description && (
-                        <p className="text-slate-500 text-sm mb-4 line-clamp-2">
-                          {itinerary.description}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2 text-sm text-slate-500">
-                          <TripIcon className="h-4 w-4" />
-                          <span className="capitalize">
-                            {itinerary.tripType}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-primary hover:text-white hover:bg-primary"
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Link>
+          <TabsContent value="all">
+            {isLoading
+              ? renderLoadingGrid()
+              : !itineraries || itineraries.length === 0
+              ? renderEmptyState(true)
+              : renderItinerariesGrid(itineraries)}
+          </TabsContent>
 
-                  {/* Action buttons positioned at bottom right outside Link */}
-                  <div className="absolute bottom-4 right-4 flex items-center space-x-1 z-10">
-                    <EditItineraryDialog itinerary={itinerary} />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) =>
-                        handleDelete(e, itinerary.id, itinerary.title)
-                      }
-                      className="text-red-500 hover:text-white hover:bg-red-600"
-                      disabled={deleteItineraryMutation.isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+          <TabsContent value="favorites">
+            {isLoading
+              ? renderLoadingGrid()
+              : filteredItineraries.length === 0
+              ? renderEmptyState(false)
+              : renderItinerariesGrid(filteredItineraries)}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
