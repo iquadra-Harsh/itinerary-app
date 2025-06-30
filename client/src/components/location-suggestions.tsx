@@ -3,9 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, Navigation, Compass, Clock, Star, Camera } from "lucide-react";
+import {
+  MapPin,
+  Navigation,
+  Compass,
+  Clock,
+  Star,
+  Camera,
+  AlertCircle,
+} from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
-interface TripSuggestion {
+interface TravelSuggestion {
+  id: string;
   name: string;
   distance: string;
   travelTime: string;
@@ -14,10 +24,12 @@ interface TripSuggestion {
   highlights: string[];
   bestFor: string[];
   rating: number;
+  location: string;
+  photos?: string[];
 }
 
 interface LocationSuggestionsProps {
-  onSuggestionSelect: (suggestion: TripSuggestion) => void;
+  onSuggestionSelect: (suggestion: TravelSuggestion) => void;
 }
 
 export function LocationSuggestions({
@@ -28,7 +40,7 @@ export function LocationSuggestions({
     lng: number;
   } | null>(null);
   const [locationName, setLocationName] = useState<string>("");
-  const [suggestions, setSuggestions] = useState<TripSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<TravelSuggestion[]>([]);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [error, setError] = useState<string>("");
@@ -53,17 +65,17 @@ export function LocationSuggestions({
         try {
           const locationName = await getLocationName(latitude, longitude);
           setLocationName(locationName);
-          await loadSuggestions(latitude, longitude);
+          await loadRealSuggestions(latitude, longitude);
         } catch (err) {
           setError("Failed to get location details");
+          setIsLoadingLocation(false);
         }
-        setIsLoadingLocation(false);
       },
       (error) => {
         setError(`Location access denied: ${error.message}`);
         setIsLoadingLocation(false);
-        // Load some default suggestions instead
-        loadDefaultSuggestions();
+        // Load some popular destinations instead
+        loadPopularDestinations();
       },
       {
         enableHighAccuracy: true,
@@ -99,172 +111,54 @@ export function LocationSuggestions({
     }
   };
 
-  // Load trip suggestions based on location
-  const loadSuggestions = async (lat: number, lng: number) => {
+  // Load real suggestions from backend API
+  const loadRealSuggestions = async (lat: number, lng: number) => {
     setIsLoadingSuggestions(true);
+    setError("");
 
-    // Generate suggestions based on location
-    // In a real app, this would call a travel API or database
-    const mockSuggestions = generateLocationBasedSuggestions(
-      lat,
-      lng,
-      locationName
-    );
+    try {
+      // Fetch places from our backend API
+      const response = await apiRequest(
+        "GET",
+        `/api/location-suggestions?lat=${lat}&lng=${lng}`
+      );
+      const travelSuggestions: TravelSuggestion[] = await response.json();
 
-    // Simulate API delay
-    setTimeout(() => {
-      setSuggestions(mockSuggestions);
+      if (travelSuggestions.length === 0) {
+        setError(
+          "No nearby attractions found. Try expanding your search radius or check a different location."
+        );
+        loadPopularDestinations();
+      } else {
+        setSuggestions(travelSuggestions);
+      }
+
+      setIsLoadingLocation(false);
+    } catch (err) {
+      console.error("Error loading suggestions:", err);
+      setError(
+        "Failed to load nearby attractions. Showing popular destinations instead."
+      );
+      loadPopularDestinations();
+      setIsLoadingLocation(false);
+    } finally {
       setIsLoadingSuggestions(false);
-    }, 1000);
+    }
   };
 
-  const loadDefaultSuggestions = () => {
+  const loadPopularDestinations = () => {
     setIsLoadingSuggestions(true);
-    const defaultSuggestions = getPopularDestinations();
+    const popularDestinations = getPopularDestinations();
 
     setTimeout(() => {
-      setSuggestions(defaultSuggestions);
+      setSuggestions(popularDestinations);
       setIsLoadingSuggestions(false);
     }, 500);
   };
 
-  // Generate suggestions based on geographic location
-  const generateLocationBasedSuggestions = (
-    lat: number,
-    lng: number,
-    location: string
-  ): TripSuggestion[] => {
-    // Determine region and suggest appropriate destinations
-    const isUSA = lat > 25 && lat < 50 && lng > -125 && lng < -65;
-    const isEurope = lat > 35 && lat < 70 && lng > -10 && lng < 40;
-    const isAsia = lat > -10 && lat < 55 && lng > 60 && lng < 150;
-
-    if (isUSA) {
-      return [
-        {
-          name: "Yellowstone National Park",
-          distance: "250 miles",
-          travelTime: "4h 30m drive",
-          type: "National Park",
-          description:
-            "America's first national park with geysers, wildlife, and stunning landscapes",
-          highlights: [
-            "Old Faithful",
-            "Grand Canyon of Yellowstone",
-            "Wildlife viewing",
-          ],
-          bestFor: ["Nature lovers", "Families", "Adventure seekers"],
-          rating: 4.8,
-        },
-        {
-          name: "Napa Valley",
-          distance: "180 miles",
-          travelTime: "3h drive",
-          type: "Wine Region",
-          description:
-            "World-renowned wine country with rolling vineyards and luxury resorts",
-          highlights: ["Wine tasting", "Michelin restaurants", "Scenic drives"],
-          bestFor: ["Couples", "Food & wine enthusiasts"],
-          rating: 4.6,
-        },
-        {
-          name: "Grand Canyon",
-          distance: "320 miles",
-          travelTime: "5h 15m drive",
-          type: "Natural Wonder",
-          description: "One of the seven natural wonders of the world",
-          highlights: ["South Rim views", "Hiking trails", "Sunrise/sunset"],
-          bestFor: ["Adventure seekers", "Photographers", "Nature lovers"],
-          rating: 4.9,
-        },
-      ];
-    } else if (isEurope) {
-      return [
-        {
-          name: "Swiss Alps",
-          distance: "200 km",
-          travelTime: "2h 30m drive",
-          type: "Mountain Region",
-          description:
-            "Breathtaking alpine scenery with pristine lakes and charming villages",
-          highlights: ["Matterhorn", "Jungfraujoch", "Lake Geneva"],
-          bestFor: ["Adventure seekers", "Nature lovers", "Photographers"],
-          rating: 4.9,
-        },
-        {
-          name: "Tuscany",
-          distance: "150 km",
-          travelTime: "2h drive",
-          type: "Cultural Region",
-          description:
-            "Rolling hills, medieval towns, and world-class wine and cuisine",
-          highlights: ["Florence", "Siena", "Chianti wine region"],
-          bestFor: ["Art lovers", "Food enthusiasts", "Couples"],
-          rating: 4.7,
-        },
-        {
-          name: "Santorini",
-          distance: "300 km",
-          travelTime: "1h flight",
-          type: "Greek Island",
-          description: "Iconic blue-domed churches and stunning sunset views",
-          highlights: ["Oia sunset", "Red Beach", "Wine tasting"],
-          bestFor: ["Couples", "Photographers", "Luxury travelers"],
-          rating: 4.8,
-        },
-      ];
-    } else if (isAsia) {
-      return [
-        {
-          name: "Kyoto",
-          distance: "150 km",
-          travelTime: "1h 30m train",
-          type: "Cultural City",
-          description:
-            "Ancient temples, traditional gardens, and preserved geisha districts",
-          highlights: ["Bamboo Grove", "Golden Pavilion", "Geisha district"],
-          bestFor: ["Culture enthusiasts", "Photographers", "History buffs"],
-          rating: 4.8,
-        },
-        {
-          name: "Bali",
-          distance: "800 km",
-          travelTime: "2h flight",
-          type: "Tropical Paradise",
-          description:
-            "Lush rice terraces, ancient temples, and pristine beaches",
-          highlights: ["Ubud rice terraces", "Beach resorts", "Temple tours"],
-          bestFor: [
-            "Relaxation seekers",
-            "Adventure lovers",
-            "Spiritual travelers",
-          ],
-          rating: 4.7,
-        },
-        {
-          name: "Himalayas",
-          distance: "400 km",
-          travelTime: "6h drive",
-          type: "Mountain Range",
-          description:
-            "World's highest peaks with incredible trekking and spiritual experiences",
-          highlights: [
-            "Mount Everest",
-            "Trekking routes",
-            "Buddhist monasteries",
-          ],
-          bestFor: ["Adventure seekers", "Trekkers", "Spiritual travelers"],
-          rating: 4.9,
-        },
-      ];
-    }
-
-    // Default global suggestions
-    return getPopularDestinations();
-  };
-
-  const getPopularDestinations = (): TripSuggestion[] => [
+  const getPopularDestinations = (): TravelSuggestion[] => [
     {
+      id: "paris-fr",
       name: "Paris, France",
       distance: "Varies",
       travelTime: "Flight required",
@@ -273,8 +167,10 @@ export function LocationSuggestions({
       highlights: ["Eiffel Tower", "Louvre Museum", "Champs-Élysées"],
       bestFor: ["Culture lovers", "Couples", "Art enthusiasts"],
       rating: 4.6,
+      location: "Paris, France",
     },
     {
+      id: "tokyo-jp",
       name: "Tokyo, Japan",
       distance: "Varies",
       travelTime: "Flight required",
@@ -284,8 +180,10 @@ export function LocationSuggestions({
       highlights: ["Shibuya Crossing", "Temples", "Street food"],
       bestFor: ["Culture enthusiasts", "Food lovers", "Tech enthusiasts"],
       rating: 4.7,
+      location: "Tokyo, Japan",
     },
     {
+      id: "maldives",
       name: "Maldives",
       distance: "Varies",
       travelTime: "Flight required",
@@ -295,12 +193,13 @@ export function LocationSuggestions({
       highlights: ["Private beaches", "Snorkeling", "Luxury resorts"],
       bestFor: ["Couples", "Luxury travelers", "Water sports enthusiasts"],
       rating: 4.8,
+      location: "Maldives",
     },
   ];
 
   useEffect(() => {
-    // Load default suggestions on component mount
-    loadDefaultSuggestions();
+    // Load popular destinations on component mount
+    loadPopularDestinations();
   }, []);
 
   return (
@@ -403,11 +302,17 @@ export function LocationSuggestions({
                         Highlights
                       </h4>
                       <div className="flex flex-wrap gap-1">
-                        {suggestion.highlights.map((highlight, i) => (
-                          <Badge key={i} variant="outline" className="text-xs">
-                            {highlight}
-                          </Badge>
-                        ))}
+                        {suggestion.highlights.map(
+                          (highlight: string, i: number) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {highlight}
+                            </Badge>
+                          )
+                        )}
                       </div>
                     </div>
 
@@ -416,15 +321,17 @@ export function LocationSuggestions({
                         Best For
                       </h4>
                       <div className="flex flex-wrap gap-1">
-                        {suggestion.bestFor.map((category, i) => (
-                          <Badge
-                            key={i}
-                            variant="outline"
-                            className="text-xs bg-primary/10 text-primary"
-                          >
-                            {category}
-                          </Badge>
-                        ))}
+                        {suggestion.bestFor.map(
+                          (category: string, i: number) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="text-xs bg-primary/10 text-primary"
+                            >
+                              {category}
+                            </Badge>
+                          )
+                        )}
                       </div>
                     </div>
                   </div>

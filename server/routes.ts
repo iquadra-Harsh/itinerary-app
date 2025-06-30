@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { generateItinerary } from "./services/openai";
+import { googlePlacesService } from "./services/google-places";
 import { insertItinerarySchema, updateItinerarySchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -164,6 +165,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting itinerary:", error);
       res.status(500).json({ message: "Failed to delete itinerary" });
+    }
+  });
+
+  // Location suggestions route
+  app.get("/api/location-suggestions", async (req, res) => {
+    try {
+      const { lat, lng, radius } = req.query;
+
+      if (!lat || !lng) {
+        return res
+          .status(400)
+          .json({ message: "Latitude and longitude are required" });
+      }
+
+      const latitude = parseFloat(lat as string);
+      const longitude = parseFloat(lng as string);
+      const searchRadius = radius ? parseInt(radius as string) : 25000;
+
+      if (isNaN(latitude) || isNaN(longitude)) {
+        return res.status(400).json({ message: "Invalid coordinates" });
+      }
+
+      try {
+        const places = await googlePlacesService.searchNearbyPlaces(
+          latitude,
+          longitude,
+          searchRadius
+        );
+        const suggestions = googlePlacesService.convertToTravelSuggestions(
+          places,
+          latitude,
+          longitude
+        );
+        res.json(suggestions);
+      } catch (apiError) {
+        console.log("Google Places API failed, using fallback suggestions");
+        const fallbackSuggestions =
+          googlePlacesService.getFallbackSuggestions();
+        res.json(fallbackSuggestions);
+      }
+    } catch (error) {
+      console.error("Error fetching location suggestions:", error);
+      res.status(500).json({ message: "Failed to fetch location suggestions" });
     }
   });
 
