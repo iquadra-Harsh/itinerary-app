@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { type Itinerary } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { EditItineraryDialog } from "@/components/edit-itinerary-dialog";
 import {
   Compass,
   Plus,
@@ -182,9 +183,9 @@ export default function HomePage() {
               return (
                 <Card
                   key={itinerary.id}
-                  className="overflow-hidden travel-card-hover cursor-pointer"
+                  className="overflow-hidden travel-card-hover relative"
                 >
-                  <Link href={`/itinerary/${itinerary.id}`}>
+                  <Link href={`/itinerary/${itinerary.id}`} className="block">
                     <div className="w-full h-48 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
                       <div className="text-center">
                         <MapPin className="h-12 w-12 text-primary mx-auto mb-2" />
@@ -193,7 +194,7 @@ export default function HomePage() {
                         </p>
                       </div>
                     </div>
-                    <CardContent className="p-6">
+                    <CardContent className="p-6 pb-12">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xl font-semibold text-slate-800 truncate">
                           {itinerary.title || `${itinerary.location} Adventure`}
@@ -239,21 +240,26 @@ export default function HomePage() {
                           >
                             View Details
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) =>
-                              handleDelete(e, itinerary.id, itinerary.title)
-                            }
-                            className="text-red-500 hover:text-white hover:bg-red-600"
-                            disabled={deleteItineraryMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       </div>
                     </CardContent>
                   </Link>
+
+                  {/* Action buttons positioned at bottom right outside Link */}
+                  <div className="absolute bottom-4 right-4 flex items-center space-x-1 z-10">
+                    <EditItineraryDialog itinerary={itinerary} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) =>
+                        handleDelete(e, itinerary.id, itinerary.title)
+                      }
+                      className="text-red-500 hover:text-white hover:bg-red-600"
+                      disabled={deleteItineraryMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </Card>
               );
             })}
