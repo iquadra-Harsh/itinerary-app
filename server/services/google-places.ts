@@ -56,7 +56,7 @@ class GooglePlacesService {
     }
 
     try {
-      console.log("Google Places API request started");
+      // console.log("Google Places API request started");
 
       // Search for tourist attractions, museums, and points of interest
       const url = this.getUrl("nearbysearch/json");
@@ -68,7 +68,6 @@ class GooglePlacesService {
       });
 
       console.log("Google Places API URL:", `${url}?${params}`);
-      console.log("Google Places API Key present:", !!this.API_KEY);
 
       const response = await fetch(`${url}?${params}`, {
         method: "GET",
@@ -88,7 +87,7 @@ class GooglePlacesService {
       }
 
       const data: GooglePlacesResponse = await response.json();
-      console.log("Google Places API Response:", JSON.stringify(data, null, 2));
+      // console.log("Google Places API Response:", JSON.stringify(data, null, 2));
 
       if (data.status !== "OK") {
         console.log(
@@ -179,7 +178,7 @@ class GooglePlacesService {
         ?.slice(0, 3)
         .map(
           (photo) =>
-            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${process.env.GOOGLE_MAPS_API}`
+            `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${this.API_KEY}`
         ) || [];
 
     return {
