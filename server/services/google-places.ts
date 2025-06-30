@@ -109,15 +109,22 @@ class GooglePlacesService {
     }
   }
 
-  convertToTravelSuggestions(places: GooglePlace[]): TravelSuggestion[] {
+  convertToTravelSuggestions(
+    places: GooglePlace[],
+    userLat?: number,
+    userLng?: number
+  ): TravelSuggestion[] {
     console.log(
       `Converting ${places.length} Google Places to travel suggestions`
     );
 
-    return places
+    const suggestions = places
       .filter((place) => this.isValidTravelDestination(place))
-      .slice(0, 8) // Limit to 8 suggestions
-      .map((place) => this.mapPlaceToSuggestion(place));
+      .map((place) => this.mapPlaceToSuggestion(place, userLat, userLng))
+      .slice(0, 6); // Ensure exactly 6 suggestions
+
+    console.log(`Returning ${suggestions.length} travel suggestions`);
+    return suggestions;
   }
 
   private isValidTravelDestination(place: GooglePlace): boolean {
@@ -138,20 +145,33 @@ class GooglePlacesService {
     return place.types.some((type) => travelTypes.includes(type));
   }
 
-  private mapPlaceToSuggestion(place: GooglePlace): TravelSuggestion {
-    // Calculate approximate distance (this is a rough calculation)
-    const distanceKm = Math.random() * 20 + 1; // Random for demo, would use actual distance
+  private mapPlaceToSuggestion(
+    place: GooglePlace,
+    userLat?: number,
+    userLng?: number
+  ): TravelSuggestion {
+    // Calculate actual distance using coordinates if available
+    let distanceKm = 5; // Default fallback
+    if (userLat && userLng && place.geometry?.location) {
+      distanceKm = this.calculateDistance(
+        userLat,
+        userLng,
+        place.geometry.location.lat,
+        place.geometry.location.lng
+      );
+    }
+
     const distanceStr =
       distanceKm < 1
         ? `${Math.round(distanceKm * 1000)}m`
         : `${distanceKm.toFixed(1)}km`;
 
-    // Calculate travel time (rough estimate: 5km/h walking, 25km/h driving)
-    const travelTimeMinutes = Math.round(distanceKm * 12); // Assume mixed transport
+    // Calculate realistic travel time for driving (average 40 km/h in city)
+    const travelTimeMinutes = Math.round((distanceKm / 40) * 60); // 40km/h converted to minutes
     const travelTimeStr =
       travelTimeMinutes < 60
         ? `${travelTimeMinutes}min`
-        : `${Math.round(travelTimeMinutes / 60)}h ${travelTimeMinutes % 60}min`;
+        : `${Math.floor(travelTimeMinutes / 60)}h ${travelTimeMinutes % 60}min`;
 
     // Get photos if available
     const photos =
@@ -201,9 +221,8 @@ class GooglePlacesService {
 
   private generateDescription(place: GooglePlace): string {
     const type = this.getPlaceType(place);
-    const rating = place.rating ? ` with ${place.rating} stars` : "";
 
-    return `A popular ${type.toLowerCase()} in the area${rating}. ${
+    return `A popular ${type.toLowerCase()} in the area. ${
       place.name
     } offers visitors an authentic local experience and is well-regarded by travelers.`;
   }
@@ -266,6 +285,25 @@ class GooglePlacesService {
   }
 
   // Fallback suggestions for when API fails
+  private calculateDistance(
+    lat1: number,
+    lng1: number,
+    lat2: number,
+    lng2: number
+  ): number {
+    const R = 6371; // Radius of Earth in kilometers
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in kilometers
+  }
+
   getFallbackSuggestions(): TravelSuggestion[] {
     return [
       {
