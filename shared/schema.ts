@@ -56,6 +56,8 @@ export const insertItinerarySchema = createInsertSchema(itineraries).omit({
 });
 
 export const updateItinerarySchema = createInsertSchema(itineraries).pick({
+  title: true,
+  description: true,
   generatedContent: true,
   status: true,
 });
