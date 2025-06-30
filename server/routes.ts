@@ -193,8 +193,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           longitude,
           searchRadius
         );
-        const suggestions =
-          googlePlacesService.convertToTravelSuggestions(places);
+        const suggestions = googlePlacesService.convertToTravelSuggestions(
+          places,
+          latitude,
+          longitude
+        );
         res.json(suggestions);
       } catch (apiError) {
         console.log("Google Places API failed, using fallback suggestions");
