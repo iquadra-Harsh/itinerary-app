@@ -63,13 +63,12 @@ const periodColors = {
 };
 
 export default function ItineraryView() {
+  const params = useParams();
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
   // Extract ID from URL path manually since useParams isn't working
   const id = location.split("/").pop();
-
-  // console.log("Extracted ID from URL:", id);
 
   const {
     data: itinerary,
@@ -78,28 +77,29 @@ export default function ItineraryView() {
   } = useQuery<Itinerary>({
     queryKey: ["/api/itineraries", id],
     queryFn: async () => {
-      // console.log("Fetching itinerary for ID:", id);
       const res = await apiRequest("GET", `/api/itineraries/${id}`);
-      const data = await res.json();
-      // console.log("Query result:", data);
-      return data;
+      return await res.json();
     },
     enabled: !!id,
   });
-
-  console.log(
-    "Query state - isLoading:",
-    isLoading,
-    "itinerary:",
-    itinerary,
-    "error:",
-    error
-  );
 
   const saveItineraryMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("PUT", `/api/itineraries/${id}`, {
         status: "saved",
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/itineraries", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/itineraries"] });
+    },
+  });
+
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PUT", `/api/itineraries/${id}`, {
+        isFavorited: !itinerary?.isFavorited,
       });
       return await res.json();
     },
@@ -117,6 +117,10 @@ export default function ItineraryView() {
 
   const handleSave = () => {
     saveItineraryMutation.mutate();
+  };
+
+  const handleToggleFavorite = () => {
+    toggleFavoriteMutation.mutate();
   };
 
   if (isLoading) {
@@ -139,10 +143,7 @@ export default function ItineraryView() {
     );
   }
 
-  console.log("Itinerary data:", itinerary);
-
   if (!itinerary) {
-    console.error("Itinerary not found or invalid ID:", id);
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
@@ -155,8 +156,6 @@ export default function ItineraryView() {
     );
   }
 
-  console.log("Itinerary data:", itinerary);
-  console.log("Generated content:", itinerary.generatedContent);
   const generatedContent =
     itinerary.generatedContent as GeneratedItinerary | null;
 
@@ -181,6 +180,23 @@ export default function ItineraryView() {
               </h1>
             </div>
             <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleFavorite}
+                className={`${
+                  itinerary.isFavorited
+                    ? "text-red-500 hover:text-red-600 hover:bg-red-100"
+                    : "text-slate-500 hover:text-slate-600 hover:bg-red-100"
+                }`}
+                disabled={toggleFavoriteMutation.isPending}
+              >
+                <Heart
+                  className={`h-4 w-4 ${
+                    itinerary.isFavorited ? "fill-current" : ""
+                  }`}
+                />
+              </Button>
               {itinerary.status !== "saved" && (
                 <Button
                   variant="outline"
